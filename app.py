@@ -7,7 +7,7 @@ from connect_llm.connect_llm_stack import ConnectLlmStack
 
 
 app = cdk.App()
-ConnectLlmStack(app, "ConnectLlmStack",
+ConnectLlmStack(app, "CONNECT-LLM",
     # If you don't specify 'env', this stack will be environment-agnostic.
     # Account/Region-dependent features and context lookups will not work,
     # but a single synthesized template can be deployed anywhere.

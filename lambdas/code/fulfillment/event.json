@@ -1,0 +1,54 @@
+{
+    "inputMode": "Speech",
+    "requestAttributes": {
+        "x-amz-lex:accept-content-types": "PlainText,SSML",
+        "x-amz-lex:channels:platform": "Connect"
+    },
+    "sessionId": "3b06e441-8169-44aa-aa25-dd4ecf2234ba",
+    "inputTranscript": "hola",
+    "rawInputTranscript": "hola",
+    "interpretations": [
+        {
+            "interpretationSource": "Lex",
+            "intent": {
+                "name": "FallbackIntent",
+                "slots": {},
+                "state": "InProgress",
+                "confirmationState": "None"
+            }
+        },
+        {
+            "interpretationSource": "Lex",
+            "nluConfidence": 0.48,
+            "intent": {
+                "name": "llmIntent",
+                "slots": {
+                    "llmSlot": null
+                },
+                "state": "InProgress",
+                "confirmationState": "None"
+            }
+        }
+    ],
+    "bot": {
+        "name": "bridge",
+        "version": "DRAFT",
+        "localeId": "es_US",
+        "id": "FZELVO24WI",
+        "aliasId": "TSTALIASID",
+        "aliasName": "TestBotAlias"
+    },
+    "responseContentType": "text/plain; charset=utf-8",
+    "sessionState": {
+        "originatingRequestId": "b071f54b-db54-4ea2-ae7a-3b6535c02095",
+        "sessionAttributes": {},
+        "intent": {
+            "name": "FallbackIntent",
+            "slots": {},
+            "state": "InProgress",
+            "confirmationState": "None"
+        }
+    },
+    "messageVersion": "1.0",
+    "invocationSource": "DialogCodeHook"
+}

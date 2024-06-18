@@ -1,12 +1,7 @@
 {
-    "inputMode": "Speech",
-    "requestAttributes": {
-        "x-amz-lex:accept-content-types": "PlainText,SSML",
-        "x-amz-lex:channels:platform": "Connect"
-    },
-    "sessionId": "3b06e441-8169-44aa-aa25-dd4ecf2234ba",
-    "inputTranscript": "hola",
-    "rawInputTranscript": "hola",
+    "inputMode": "Text",
+    "sessionId": "461004555540462",
+    "inputTranscript": "Hola",
     "interpretations": [
         {
             "interpretationSource": "Lex",
@@ -40,7 +35,7 @@
     },
     "responseContentType": "text/plain; charset=utf-8",
     "sessionState": {
-        "originatingRequestId": "b071f54b-db54-4ea2-ae7a-3b6535c02095",
+        "originatingRequestId": "fc5ff294-e6e7-4986-9ccb-3c1c7498d650",
         "sessionAttributes": {},
         "intent": {
             "name": "FallbackIntent",

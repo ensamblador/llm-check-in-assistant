@@ -19,3 +19,7 @@ class Tables(Construct):
             partition_key=ddb.Attribute(name="sessionId", type=ddb.AttributeType.STRING),
             **TABLE_CONFIG)
 
+        self.checkIns = ddb.Table(
+            self, "CheckIn", 
+            partition_key=ddb.Attribute(name="sessionId", type=ddb.AttributeType.STRING),
+            **TABLE_CONFIG)

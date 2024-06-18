@@ -8,9 +8,10 @@ class ConnectLlmStack(Stack):
     def __init__(self, scope: Construct, construct_id: str, **kwargs) -> None:
         super().__init__(scope, construct_id, **kwargs)
 
-
         Tb = Tables(self, 'Tb')
         Fn  = Lambdas(self,'Fn')
         Fn.fulfillment.add_environment("TABLE_NAME", Tb.conversationHistory.table_name)
+        Fn.fulfillment.add_environment("CHECKIN_TABLE_NAME", Tb.checkIns.table_name)
         Tb.conversationHistory.grant_read_write_data(Fn.fulfillment)
+        Tb.checkIns.grant_read_write_data(Fn.fulfillment)
         

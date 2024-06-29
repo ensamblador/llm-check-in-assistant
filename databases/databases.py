@@ -19,6 +19,13 @@ class Tables(Construct):
             partition_key=ddb.Attribute(name="sessionId", type=ddb.AttributeType.STRING),
             **TABLE_CONFIG)
 
+
+        self.partialMessages = ddb.Table(
+            self, "PartialMessages", 
+            partition_key=ddb.Attribute(name="ContactId", type=ddb.AttributeType.STRING),
+            sort_key=ddb.Attribute(name = "timestamp", type=ddb.AttributeType.NUMBER),
+            **TABLE_CONFIG)
+
         self.checkIns = ddb.Table(
             self, "CheckIn", 
             partition_key=ddb.Attribute(name="sessionId", type=ddb.AttributeType.STRING),

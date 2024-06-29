@@ -3,6 +3,8 @@ import logging
 import boto3
 import json
 import os
+import time
+
 
 print (boto3.__version__)
 
@@ -56,14 +58,15 @@ tool_config = {
 }
 
 
-TABLE_NAME          = os.environ['TABLE_NAME']
-CHECKIN_TABLE_NAME          = os.environ['CHECKIN_TABLE_NAME']
-
+TABLE_NAME                   = os.environ['TABLE_NAME']
+CHECKIN_TABLE_NAME           = os.environ['CHECKIN_TABLE_NAME']
+PARTIAL_MESSAGES_TABLE       = os.environ['PARTIAL_MESSAGES_TABLE']
 
 def not_meaningful(user_utterance):
     if user_utterance == '' or len(user_utterance) < 3:
         return True
     return False
+
 
 def confirm_check_in(session_id,locator, last_name):
     print (f"Guardando en checkin table")
@@ -75,29 +78,124 @@ def confirm_check_in(session_id,locator, last_name):
     return "check-in confirmado"
 
 
+def save_phrase(contactId, phrase):
+    print (f"New Phrase for {contactId}: {phrase}")
+    table = dynamodb.Table(PARTIAL_MESSAGES_TABLE)
+    timestamp_ms = int(time.time() * 1000)
+    item = {"ContactId": contactId, "timestamp": timestamp_ms, "text": phrase}
+    response = table.put_item(Item=item)
+    return response
 
-# Old version without tools
-def call_llm ( user_input, messages =[]):
 
-    # copy messages into new list
+def stream_conversation(bedrock_client, model_id, system, messages, tool_config, session_id):
+    response = bedrock_client.converse_stream(
+        system = [{"text": system}],
+        modelId=model_id, messages=messages, toolConfig=tool_config
+    )
+
+    stop_reason = ""
+
+    message = {}
+    content = []
+    message["content"] = content
+    text = ""
+    tool_use = {}
+
+    phrases = []
+    current_phrase = ""
+
+    for chunk in response["stream"]:
+
+        message_start       = chunk.get("messageStart")
+        content_block_start = chunk.get("contentBlockStart")
+        content_block_delta = chunk.get("contentBlockDelta")
+        content_block_stop  =  chunk.get("contentBlockStop")
+        message_stop        = chunk.get("messageStop")
+
+        if message_start: 
+            message["role"] = message_start.get("role")
+        elif message_stop: 
+            stop_reason = message_stop.get("stopReason")
+
+        elif content_block_start:
+            tool = content_block_start.get("start").get("toolUse")
+            tool_use["toolUseId"] = tool.get("toolUseId")
+            tool_use["name"] = tool.get("name")
+
+        elif content_block_stop:
+            if 'input' in tool_use:
+                tool_use['input'] = json.loads(tool_use['input'])
+                content.append({'toolUse': tool_use})
+                #tool_use = {}
+            else:
+                content.append({'text': text})
+                text = ''
+
+        elif content_block_delta:
+            delta = content_block_delta.get("delta")
+
+            if delta.get("toolUse"):
+                if "input" not in tool_use:
+                    tool_use["input"] = ""
+                tool_use["input"] += delta["toolUse"]["input"]
+
+            elif delta.get("text"):
+                delta_text = delta.get("text")
+                text +=delta_text
+                # print(delta_text, end="")
+                current_phrase += delta_text
+
+                last_character = delta_text[-1]
+                if last_character in [".", "?", "!", "," ":", ";"]:
+                    phrases.append(current_phrase)
+                    save_phrase(session_id, current_phrase.strip())
+                    current_phrase = ""
+    
+    save_phrase(session_id, "<fin_streaming>")
+    return stop_reason, message, tool_use
+
+
+def call_llm_with_tools_streaming(session_id, user_input, messages = []):
+
     new_messages = [m for m in messages]
+    new_messages.append({"role": "user","content": [{"text": user_input}]})
 
-    new_messages.append({"role": "user","content": [{"type":"text", "text": user_input}]})
+    stop_reason, message, tool = stream_conversation( bedrock_client, model_id, system_prompt, new_messages,tool_config, session_id)
+    new_messages.append(message)
 
-    body=json.dumps(
-        {
-            "anthropic_version": "bedrock-2023-05-31",
-            "max_tokens": 100,
-            "system": system_prompt,
-            "messages": new_messages
-        }  
-    ) 
-    response = bedrock_client.invoke_model( modelId=model_id,body=body)
-    response_body = json.loads(response.get('body').read())
-    assistant_reply = response_body.get('content')[0].get('text')
-    print (f"user: {user_input}")
-    print (f"assistant: {assistant_reply}")
-    return assistant_reply
+    if stop_reason == 'tool_use':
+        logger.info("Requesting tool %s. Request: %s",tool['name'], tool['toolUseId'])
+
+        if tool['name'] == 'confirm_check_in':
+            tool_result = {}
+
+            res = confirm_check_in(session_id, tool['input']['locator'], tool['input']['last_name'])
+            tool_result = {
+                "toolUseId": tool['toolUseId'],
+                "content": [{"json": {"result": res}}]
+            }
+
+
+            tool_result_message = {
+                "role": "user",
+                "content": [
+                    {
+                        "toolResult": tool_result
+
+                    }
+                ]
+            }
+            new_messages.append(tool_result_message)
+
+            # Send the tool result to the model.
+            stop_reason, message, tool = stream_conversation( bedrock_client, model_id,system_prompt, new_messages,tool_config, session_id)
+
+            new_messages.append(message)
+            print(f"output_message: {message.get("text")}")
+            
+    
+    return message['content'][0]['text'], new_messages
+
 
 def call_llm_with_tools(session_id, user_input, messages =[]):
     new_messages = [m for m in messages]
@@ -202,7 +300,7 @@ def handler(intent_request):
 
     chat_history = get_chat_history(session_id)
 
-    assistant_reply, new_messges = call_llm_with_tools(session_id, user_utterance, messages=chat_history['messages'])
+    assistant_reply, new_messges = call_llm_with_tools_streaming(session_id, user_utterance, messages=chat_history['messages'])
     
     chat_history['messages'] = new_messges
 

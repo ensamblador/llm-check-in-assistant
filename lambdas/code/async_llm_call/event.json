@@ -1,49 +1,49 @@
 {
-    "sessionId": "461004555540518",
+    "inputMode": "Text",
+    "sessionId": "461004555540462",
     "inputTranscript": "Hola",
     "interpretations": [
         {
+            "interpretationSource": "Lex",
             "intent": {
                 "name": "FallbackIntent",
                 "slots": {},
-                "state": "ReadyForFulfillment",
+                "state": "InProgress",
                 "confirmationState": "None"
-            },
-            "interpretationSource": "Lex"
+            }
         },
         {
-            "nluConfidence": 0.42,
+            "interpretationSource": "Lex",
+            "nluConfidence": 0.48,
             "intent": {
                 "name": "llmIntent",
                 "slots": {
                     "llmSlot": null
                 },
-                "state": "ReadyForFulfillment",
+                "state": "InProgress",
                 "confirmationState": "None"
-            },
-            "interpretationSource": "Lex"
+            }
         }
     ],
     "bot": {
         "name": "bridge",
         "version": "DRAFT",
-        "localeId": "es_419",
+        "localeId": "es_US",
         "id": "FZELVO24WI",
         "aliasId": "TSTALIASID",
         "aliasName": "TestBotAlias"
     },
     "responseContentType": "text/plain; charset=utf-8",
     "sessionState": {
+        "originatingRequestId": "fc5ff294-e6e7-4986-9ccb-3c1c7498d650",
         "sessionAttributes": {},
         "intent": {
             "name": "FallbackIntent",
             "slots": {},
-            "state": "ReadyForFulfillment",
+            "state": "InProgress",
             "confirmationState": "None"
-        },
-        "originatingRequestId": "e5a73329-51f6-4120-9b5e-86a37c52ad33"
+        }
     },
     "messageVersion": "1.0",
-    "invocationSource": "FulfillmentCodeHook",
-    "inputMode": "Text"
+    "invocationSource": "DialogCodeHook"
 }

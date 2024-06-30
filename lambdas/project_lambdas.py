@@ -29,10 +29,28 @@ class Lambdas(Construct):
         boto3_later = Boto3(self, "B3")
 
         self.fulfillment = aws_lambda.Function(
-
-            self, "LexFullfillment", handler="lambda_function.lambda_handler",
-            layers=[boto3_later.layer],
+            self, "LexFullfillment", 
+            function_name="Lex-Fulfillmemt", handler="lambda_function.lambda_handler",
             code = aws_lambda.Code.from_asset("./lambdas/code/fulfillment"), **COMMON_LAMBDA_CONF)
         
-        self.fulfillment.add_to_role_policy(iam.PolicyStatement(actions=['dynamodb:*'],resources=["*"]))
-        self.fulfillment.add_to_role_policy(iam.PolicyStatement(actions=['bedrock:*'],resources=["*"]))
+        self.async_llm_call = aws_lambda.Function(
+            self, "AsyncLMLCall", 
+            function_name="Async-LLM-Call",
+            handler="lambda_function.lambda_handler",
+            layers=[boto3_later.layer],
+            code = aws_lambda.Code.from_asset("./lambdas/code/async_llm_call"), **COMMON_LAMBDA_CONF)
+        
+        self.async_llm_call.grant_invoke(self.fulfillment)
+
+
+        self.get_response_delta = aws_lambda.Function(
+            self, "GetResponseDelta", 
+            function_name="Get-Response-Delta",
+            handler="lambda_function.lambda_handler",
+            code = aws_lambda.Code.from_asset("./lambdas/code/get_response_delta"), **COMMON_LAMBDA_CONF)
+
+        self.async_llm_call.add_to_role_policy(iam.PolicyStatement(actions=['dynamodb:*'],resources=["*"]))
+        self.async_llm_call.add_to_role_policy(iam.PolicyStatement(actions=['bedrock:*'],resources=["*"]))
+
+        self.get_response_delta.add_to_role_policy(iam.PolicyStatement(actions=['dynamodb:*'], resources=["*"]))
+

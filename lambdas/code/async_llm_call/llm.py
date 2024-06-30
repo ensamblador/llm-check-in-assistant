@@ -4,7 +4,7 @@ import boto3
 import json
 import os
 import time
-
+from decimal import Decimal
 
 print (boto3.__version__)
 
@@ -24,11 +24,22 @@ Hola. Tu eres Kiut, un agente IA de ayuda a de check-in para vuelos.
 Aquí están las reglas importantes para la interacción:
 - Inicia Saludando al pasajero y solicita su número de reserva y apellido. Es posible que el primer mensaje del usuario sea esta información.
 - Tu objetivo principal es recopilar solo dos datos y nada más: el código o número de reserva (una secuencia de 6 caracteres que consta de 3
-letras seguidas de 3 dígitos) y el apellido del pasajero.
+letras seguidas de 3 dígitos como por ejemplo <prosody rate="medium"><say-as interpret-as="spell-out">ABC123</say-as></prosody>) y el apellido del pasajero. 
 - el numero de reserva puede ser dicho por el pasajero tal como se escucha, por ejemplo si dice: "a. b. c. uno dos cuatro." el numero de reserva es ABC124. También puede decir "a, v de vaca, c de casa, ciento veinti nueve" que es AVC129.
 - Sea natural pero conciso en sus respuestas.
 - Si la conversación comienza a desviarse del tema, cortésmente devuélvala al proceso de check-in.
 - Al final de la conversación, confirma el numero de reserva y apellido del pasajero, cuando lo digas, el número de reserva debe estar encerrado en la etiqueta <prosody rate="medium"><say-as interpret-as="spell-out">{codigo_reserva}</say-as></prosody> (usa rate="medium" normalmente, si el cliente pide más lento puedes usar rate="slow")."""
+
+
+first_messages =  [
+    { "content": [{ "text": "hola"}], "role": "user"},
+    { "content": [
+        {"text": "Hola. Soy Kiut... Estoy aquí para ayudarte en tu proceso de check-in. Indícame el código de reserva y apellido para comenzar."}
+        ],"role": "assistant"
+    }
+]
+
+
 
 tool_config = {
     "tools": [
@@ -78,16 +89,17 @@ def confirm_check_in(session_id,locator, last_name):
     return "check-in confirmado"
 
 
-def save_phrase(contactId, phrase):
+def save_phrase(contactId, phrase, start_time):
     print (f"New Phrase for {contactId}: {phrase}")
     table = dynamodb.Table(PARTIAL_MESSAGES_TABLE)
     timestamp_ms = int(time.time() * 1000)
-    item = {"ContactId": contactId, "timestamp": timestamp_ms, "text": phrase}
+    elapsed_time = Decimal(str((timestamp_ms - start_time)/1000))
+    item = {"ContactId": contactId, "timestamp": timestamp_ms, "text": phrase, "elapsed_time": elapsed_time}
     response = table.put_item(Item=item)
     return response
 
 
-def stream_conversation(bedrock_client, model_id, system, messages, tool_config, session_id):
+def stream_conversation(bedrock_client, model_id, system, messages, tool_config, session_id, start_time):
     response = bedrock_client.converse_stream(
         system = [{"text": system}],
         modelId=model_id, messages=messages, toolConfig=tool_config
@@ -148,19 +160,24 @@ def stream_conversation(bedrock_client, model_id, system, messages, tool_config,
                 last_character = delta_text[-1]
                 if last_character in [".", "?", "!", "," ":", ";"]:
                     phrases.append(current_phrase)
-                    save_phrase(session_id, current_phrase.strip())
+                    save_phrase(session_id, current_phrase.strip(), start_time)
                     current_phrase = ""
     
-    save_phrase(session_id, "<fin_streaming>")
+    save_phrase(session_id, "fin_streaming", start_time)
     return stop_reason, message, tool_use
 
 
 def call_llm_with_tools_streaming(session_id, user_input, messages = []):
 
+    if len(messages) == 0: messages = first_messages
     new_messages = [m for m in messages]
+
     new_messages.append({"role": "user","content": [{"text": user_input}]})
 
-    stop_reason, message, tool = stream_conversation( bedrock_client, model_id, system_prompt, new_messages,tool_config, session_id)
+    start_invocation_time_ms = int(time.time() * 1000)
+
+
+    stop_reason, message, tool = stream_conversation( bedrock_client, model_id, system_prompt, new_messages,tool_config, session_id, start_invocation_time_ms)
     new_messages.append(message)
 
     if stop_reason == 'tool_use':
@@ -188,7 +205,7 @@ def call_llm_with_tools_streaming(session_id, user_input, messages = []):
             new_messages.append(tool_result_message)
 
             # Send the tool result to the model.
-            stop_reason, message, tool = stream_conversation( bedrock_client, model_id,system_prompt, new_messages,tool_config, session_id)
+            stop_reason, message, tool = stream_conversation( bedrock_client, model_id,system_prompt, new_messages,tool_config, session_id, start_invocation_time_ms)
 
             new_messages.append(message)
             print(f"output_message: {message.get("text")}")
